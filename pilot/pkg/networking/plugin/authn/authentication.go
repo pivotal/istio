@@ -29,6 +29,8 @@ import (
 	authn "istio.io/api/authentication/v1alpha1"
 	authn_filter "istio.io/api/envoy/config/filter/http/authn/v2alpha1"
 	jwtfilter "istio.io/api/envoy/config/filter/http/jwt_auth/v2alpha1"
+	oidcfilter "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/oidc/v1alpha"
+	sessionManager "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/session_manager/v1alpha"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/plugin"
 	"istio.io/istio/pilot/pkg/networking/util"
@@ -45,6 +47,10 @@ const (
 	// as the name defined in
 	// https://github.com/istio/proxy/blob/master/src/envoy/http/authn/http_filter_factory.cc#L30
 	AuthnFilterName = "istio_authn"
+
+	// or just oidc?
+	OidcFilterName = "envoy.filters.http.oidc"
+	SessionManagerFilterName = "envoy.filters.http.session_manager"
 
 	// EnvoyTLSInspectorFilterName is the name for Envoy TLS sniffing listener filter.
 	EnvoyTLSInspectorFilterName = "envoy.listener.tls_inspector"
@@ -239,6 +245,66 @@ func ConvertPolicyToJwtConfig(policy *authn.Policy) *jwtfilter.JwtAuthentication
 	return ret
 }
 
+func ReturnHardcodedSessionManagerFilterConfig() *sessionManager.SessionManager {
+
+	tokenBinding := sessionManager.TokenBinding {
+		Binding: "x-xsrf-token",
+		Secret: "Mb07unY1jd4h2s5wUSO9KJzhqjVTazXMWCp4OAiiGko",
+		Token: "istio_session",
+	}
+
+	forwardRule := sessionManager.ForwardRule{
+		Name: "authorization",
+		Preamble: "Bearer",
+	}
+
+
+	ret := &sessionManager.SessionManager{
+		TokenBinding: &tokenBinding,
+		ForwardRule: &forwardRule,
+	}
+
+	return ret
+}
+
+func ReturnHardcodedOidcFilterConfig() *oidcfilter.OidcConfig {
+	oidcClient := oidcfilter.OidcClient {
+		ClientId: "7ee1a485-2c48-4724-b712-4c118553e63b",
+		ClientSecret: "98d522e2-ec94-4172-8812-f9694489a2d5",
+		Scopes: []string{"openid"},
+		JwksUri: &core.HttpUri{Uri: "https://envoydemo.login.sfo.identity.team/token_keys"},
+		AuthorizationEndpoint: &core.HttpUri{Uri: "https://envoydemo.login.sfo.identity.team/oauth/authorize"},
+		TokenEndpoint: &core.HttpUri{Uri: "https://envoydemo.login.sfo.identity.team/oauth/token"},
+	}
+
+	criteriaMatch := oidcfilter.Match_Criteria {
+		Header: ":authority",
+		Value: "192.168.64.7:31380",
+	}
+
+	match := oidcfilter.Match {
+	 	Idp: &oidcClient,
+	 	Criteria: &criteriaMatch,
+	}
+
+	tokenBinding := sessionManager.TokenBinding {
+		Binding: "x-xsrf-token",
+		Secret: "Mb07unY1jd4h2s5wUSO9KJzhqjVTazXMWCp4OAiiGko",
+		Token: "istio_session",
+	}
+
+	ret := &oidcfilter.OidcConfig {
+		Matches: map[string]*oidcfilter.Match {
+			"tenant1.acme.com": &match,
+		},
+		AuthenticationCallback: "/oidc/authenticate",
+		LandingPage: "http://192.168.64.7:31380/productpage",
+		Binding: &tokenBinding,
+	}
+
+	return ret
+}
+
 // ConvertPolicyToAuthNFilterConfig returns an authn filter config corresponding for the input policy.
 func ConvertPolicyToAuthNFilterConfig(policy *authn.Policy, proxyType model.NodeType) *authn_filter.FilterConfig {
 	if policy == nil || (len(policy.Peers) == 0 && len(policy.Origins) == 0) {
@@ -311,9 +377,38 @@ func BuildAuthNFilter(policy *authn.Policy, proxyType model.NodeType) *http_conn
 	}
 }
 
+// BuildOidcFilter xxxx
+func BuildOidcFilter() *http_conn.HttpFilter {
+	log.Info("sso - BuildOidcFilter")
+	filterConfigProto := ReturnHardcodedOidcFilterConfig()
+	if filterConfigProto == nil {
+		return nil
+	}
+
+	log.Info("sso - BuildOidcFilter about to return")
+	return &http_conn.HttpFilter{
+		Name:   OidcFilterName,
+		Config: util.MessageToStruct(filterConfigProto),
+	}
+}
+
+// BuildSessionManagerFilter xxxx
+func BuildSessionManagerFilter() *http_conn.HttpFilter {
+	log.Info("sso - BuildSessionManagerFilter")
+	filterConfigProto := ReturnHardcodedSessionManagerFilterConfig()
+	if filterConfigProto == nil {
+		return nil
+	}
+	return &http_conn.HttpFilter{
+		Name:   SessionManagerFilterName,
+		Config: util.MessageToStruct(filterConfigProto),
+	}
+}
+
 // OnOutboundListener is called whenever a new outbound listener is added to the LDS output for a given service
 // Can be used to add additional filters on the outbound path
 func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
+	log.Info("sso - calling OnOutboundListener")
 	if in.ServiceInstance == nil {
 		return nil
 	}
@@ -330,6 +425,7 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 // Can be used to add additional filters (e.g., mixer filter) or add more stuff to the HTTP connection manager
 // on the inbound path
 func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
+	log.Info("sso - calling OnInboundListener")
 	if in.Node.Type != model.Sidecar {
 		// Only care about sidecar.
 		return nil
@@ -339,6 +435,9 @@ func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableO
 }
 
 func buildFilter(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
+
+	log.Infof("sso - buildFilter for this node type: %v", in.Node.Type)
+
 	authnPolicy := model.GetConsolidateAuthenticationPolicy(
 		in.Env.IstioConfigStore, in.ServiceInstance.Service, in.ServiceInstance.Endpoint.ServicePort)
 
@@ -353,6 +452,14 @@ func buildFilter(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
 			}
 			if filter := BuildAuthNFilter(authnPolicy, in.Node.Type); filter != nil {
 				mutable.FilterChains[i].HTTP = append(mutable.FilterChains[i].HTTP, filter)
+			}
+			if filter := BuildOidcFilter(); filter != nil {
+				log.Info("sso - adding oidc filter to filterChains")
+				mutable.FilterChains[i].HTTP = append(mutable.FilterChains[i].HTTP, filter)
+				if sessionManagerFilter := BuildSessionManagerFilter(); sessionManagerFilter != nil {
+					log.Info("sso - it's ingress, actually adding session manager filter to filterChains")
+					mutable.FilterChains[i].HTTP = append(mutable.FilterChains[i].HTTP, filter)
+				}
 			}
 		}
 	}
