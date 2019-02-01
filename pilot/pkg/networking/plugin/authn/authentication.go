@@ -249,7 +249,7 @@ func ReturnHardcodedSessionManagerFilterConfig() *sessionManager.SessionManager 
 
 	tokenBinding := sessionManager.TokenBinding {
 		Binding: "x-xsrf-token",
-		Secret: "Mb07unY1jd4h2s5wUSO9KJzhqjVTazXMWCp4OAiiGko",
+		Secret: "Mb07unY1jd4h2s5wUSO9KJzhqjVTazXMWCp4OAiiGko=",
 		Token: "istio_session",
 	}
 
@@ -268,18 +268,25 @@ func ReturnHardcodedSessionManagerFilterConfig() *sessionManager.SessionManager 
 }
 
 func ReturnHardcodedOidcFilterConfig() *oidcfilter.OidcConfig {
+	tokenEndpointUri := &core.HttpUri{
+		Uri: "https://demo.login.run.pivotal.io/oauth/token",
+		HttpUpstreamType: &core.HttpUri_Cluster{Cluster: "outbound|443||demo.login.run.pivotal.io"},
+	}
+
+
+	//TODO: currently unsure whether we need JwksUri.cluster to be set..
 	oidcClient := oidcfilter.OidcClient {
-		ClientId: "7ee1a485-2c48-4724-b712-4c118553e63b",
-		ClientSecret: "98d522e2-ec94-4172-8812-f9694489a2d5",
-		Scopes: []string{"openid"},
-		JwksUri: &core.HttpUri{Uri: "https://envoydemo.login.sfo.identity.team/token_keys"},
-		AuthorizationEndpoint: &core.HttpUri{Uri: "https://envoydemo.login.sfo.identity.team/oauth/authorize"},
-		TokenEndpoint: &core.HttpUri{Uri: "https://envoydemo.login.sfo.identity.team/oauth/token"},
+		ClientId:              "XXXX",
+		ClientSecret:          "XXXX", // see lpass for this value: search "istio"
+		Scopes:                []string{"openid"},
+		JwksUri:               &core.HttpUri{Uri: "https://demo.login.run.pivotal.io/token_keys", HttpUpstreamType: &core.HttpUri_Cluster{Cluster: "outbound|443||demo.login.run.pivotal.io"}},
+		AuthorizationEndpoint: &core.HttpUri{Uri: "https://demo.login.run.pivotal.io/oauth/authorize"},
+		TokenEndpoint:         tokenEndpointUri,
 	}
 
 	criteriaMatch := oidcfilter.Match_Criteria {
 		Header: ":authority",
-		Value: "192.168.64.7:31380",
+		Value: "35.239.76.154", // update this to the whenever gateway ip changes
 	}
 
 	match := oidcfilter.Match {
@@ -289,7 +296,7 @@ func ReturnHardcodedOidcFilterConfig() *oidcfilter.OidcConfig {
 
 	tokenBinding := sessionManager.TokenBinding {
 		Binding: "x-xsrf-token",
-		Secret: "Mb07unY1jd4h2s5wUSO9KJzhqjVTazXMWCp4OAiiGko",
+		Secret: "Mb07unY1jd4h2s5wUSO9KJzhqjVTazXMWCp4OAiiGko=",
 		Token: "istio_session",
 	}
 
@@ -298,7 +305,7 @@ func ReturnHardcodedOidcFilterConfig() *oidcfilter.OidcConfig {
 			"tenant1.acme.com": &match,
 		},
 		AuthenticationCallback: "/oidc/authenticate",
-		LandingPage: "http://192.168.64.7:31380/productpage",
+		LandingPage: "https://35.239.76.154/productpage", // update this to the whenever gateway ip changes
 		Binding: &tokenBinding,
 	}
 
@@ -408,7 +415,7 @@ func BuildSessionManagerFilter() *http_conn.HttpFilter {
 // OnOutboundListener is called whenever a new outbound listener is added to the LDS output for a given service
 // Can be used to add additional filters on the outbound path
 func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
-	log.Info("sso - calling OnOutboundListener")
+	log.Infof("sso - calling OnOutboundListener for this node type: %v", in.Node.Type)
 	if in.ServiceInstance == nil {
 		return nil
 	}
@@ -425,7 +432,8 @@ func (Plugin) OnOutboundListener(in *plugin.InputParams, mutable *plugin.Mutable
 // Can be used to add additional filters (e.g., mixer filter) or add more stuff to the HTTP connection manager
 // on the inbound path
 func (Plugin) OnInboundListener(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
-	log.Info("sso - calling OnInboundListener")
+	log.Infof("sso - calling OnInboundListener for this node type: %v", in.Node.Type)
+
 	if in.Node.Type != model.Sidecar {
 		// Only care about sidecar.
 		return nil
@@ -455,11 +463,11 @@ func buildFilter(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
 			}
 			if filter := BuildOidcFilter(); filter != nil {
 				log.Info("sso - adding oidc filter to filterChains")
-				mutable.FilterChains[i].HTTP = append(mutable.FilterChains[i].HTTP, filter)
 				if sessionManagerFilter := BuildSessionManagerFilter(); sessionManagerFilter != nil {
 					log.Info("sso - it's ingress, actually adding session manager filter to filterChains")
-					mutable.FilterChains[i].HTTP = append(mutable.FilterChains[i].HTTP, filter)
+					mutable.FilterChains[i].HTTP = append(mutable.FilterChains[i].HTTP, sessionManagerFilter)
 				}
+				mutable.FilterChains[i].HTTP = append(mutable.FilterChains[i].HTTP, filter)
 			}
 		}
 	}
@@ -481,4 +489,15 @@ func (Plugin) OnInboundRouteConfiguration(in *plugin.InputParams, route *xdsapi.
 
 // OnOutboundCluster implements the Plugin interface method.
 func (Plugin) OnOutboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster) {
+  log.Info("----- Begin OnOutboundCluster called..")
+  log.Infof("Cluster: %+v\n", cluster)
+  log.Infof("InputParams: %+v\n", in)
+  if "outbound|443||demo.login.run.pivotal.io" == cluster.Name {
+  	log.Info("**** Found egress for cluster for: demo.login.run.pivotal.io")
+  }
+
+  log.Info("----- End OnOutboundCluster called..")
+
+
+
 }
