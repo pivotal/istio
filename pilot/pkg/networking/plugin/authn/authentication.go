@@ -286,7 +286,7 @@ func ReturnHardcodedOidcFilterConfig() *oidcfilter.OidcConfig {
 
 	criteriaMatch := oidcfilter.Match_Criteria {
 		Header: ":authority",
-		Value: "35.239.76.154", // update this to the whenever gateway ip changes
+		Value: "35.193.92.216", // update this to the whenever gateway ip changes
 	}
 
 	match := oidcfilter.Match {
@@ -305,7 +305,7 @@ func ReturnHardcodedOidcFilterConfig() *oidcfilter.OidcConfig {
 			"tenant1.acme.com": &match,
 		},
 		AuthenticationCallback: "/oidc/authenticate",
-		LandingPage: "https://35.239.76.154/productpage", // update this to the whenever gateway ip changes
+		LandingPage: "https://35.193.92.216/productpage", // update this to the whenever gateway ip changes
 		Binding: &tokenBinding,
 	}
 
