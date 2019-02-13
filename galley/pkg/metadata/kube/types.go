@@ -117,6 +117,17 @@ func init() {
 	})
 
 	b.Add(kube.ResourceSpec{
+		Kind:      "authorization",
+		ListKind:  "authorizationList",
+		Singular:  "authorization",
+		Plural:    "authorizations",
+		Version:   "v1alpha2",
+		Group:     "config.istio.io",
+		Target:    metadata.Types.Get("type.googleapis.com/istio.mcp.v1alpha1.extensions.LegacyMixerResource"),
+		Converter: converter.Get("legacy-mixer-resource"),
+	})
+
+	b.Add(kube.ResourceSpec{
 		Kind:      "reportnothing",
 		ListKind:  "reportnothingList",
 		Singular:  "reportnothing",
@@ -132,17 +143,6 @@ func init() {
 		ListKind:  "servicecontrolreportList",
 		Singular:  "servicecontrolreport",
 		Plural:    "servicecontrolreports",
-		Version:   "v1alpha2",
-		Group:     "config.istio.io",
-		Target:    metadata.Types.Get("type.googleapis.com/istio.mcp.v1alpha1.extensions.LegacyMixerResource"),
-		Converter: converter.Get("legacy-mixer-resource"),
-	})
-
-	b.Add(kube.ResourceSpec{
-		Kind:      "authorization",
-		ListKind:  "authorizationList",
-		Singular:  "authorization",
-		Plural:    "authorizations",
 		Version:   "v1alpha2",
 		Group:     "config.istio.io",
 		Target:    metadata.Types.Get("type.googleapis.com/istio.mcp.v1alpha1.extensions.LegacyMixerResource"),
@@ -209,6 +209,17 @@ func init() {
 		ListKind:  "signalfxList",
 		Singular:  "signalfx",
 		Plural:    "signalfxs",
+		Version:   "v1alpha2",
+		Group:     "config.istio.io",
+		Target:    metadata.Types.Get("type.googleapis.com/istio.mcp.v1alpha1.extensions.LegacyMixerResource"),
+		Converter: converter.Get("legacy-mixer-resource"),
+	})
+
+	b.Add(kube.ResourceSpec{
+		Kind:      "servicecontrol",
+		ListKind:  "servicecontrolList",
+		Singular:  "servicecontrol",
+		Plural:    "servicecontrols",
 		Version:   "v1alpha2",
 		Group:     "config.istio.io",
 		Target:    metadata.Types.Get("type.googleapis.com/istio.mcp.v1alpha1.extensions.LegacyMixerResource"),
@@ -348,17 +359,6 @@ func init() {
 	})
 
 	b.Add(kube.ResourceSpec{
-		Kind:      "servicecontrol",
-		ListKind:  "servicecontrolList",
-		Singular:  "servicecontrol",
-		Plural:    "servicecontrols",
-		Version:   "v1alpha2",
-		Group:     "config.istio.io",
-		Target:    metadata.Types.Get("type.googleapis.com/istio.mcp.v1alpha1.extensions.LegacyMixerResource"),
-		Converter: converter.Get("legacy-mixer-resource"),
-	})
-
-	b.Add(kube.ResourceSpec{
 		Kind:      "tracespan",
 		ListKind:  "tracespanList",
 		Singular:  "tracespan",
@@ -466,6 +466,17 @@ func init() {
 		Group:     "networking.istio.io",
 		Target:    metadata.Types.Get("type.googleapis.com/istio.networking.v1alpha3.VirtualService"),
 		Converter: converter.Get("identity"),
+	})
+
+	b.Add(kube.ResourceSpec{
+		Kind:      "OidcPolicy",
+		ListKind:  "OidcPolicyList",
+		Singular:  "oidcpolicy",
+		Plural:    "oidcpolicies",
+		Version:   "v1alpha1",
+		Group:     "oidc.istio.io",
+		Target:    metadata.Types.Get("type.googleapis.com/istio.oidc.v1alpha1.Policy"),
+		Converter: converter.Get("oidc-policy-resource"),
 	})
 
 	b.Add(kube.ResourceSpec{

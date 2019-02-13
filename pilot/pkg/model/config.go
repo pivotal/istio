@@ -24,6 +24,7 @@ import (
 	"github.com/gogo/protobuf/proto"
 
 	authn "istio.io/api/authentication/v1alpha1"
+	oidc "istio.io/api/oidc/v1alpha1"
 	mccpb "istio.io/api/mixer/v1/config/client"
 	networking "istio.io/api/networking/v1alpha3"
 	"istio.io/istio/pilot/pkg/model/test"
@@ -281,6 +282,8 @@ type IstioConfigStore interface {
 
 	// ClusterRbacConfig selects the ClusterRbacConfig of name DefaultRbacConfigName.
 	ClusterRbacConfig() *Config
+
+	OidcPolicyByDestination(service *Service, port *Port) *Config
 }
 
 const (
@@ -429,6 +432,16 @@ var (
 		Validate:    ValidateAuthenticationPolicy,
 	}
 
+	// OidcPolicy describes an oidc policy.
+	OidcPolicy = ProtoSchema{
+		Type:        "oidc-policy",
+		Plural:      "oidc-policies",
+		Group:       "oidc",  //TODO: this will be part of the authentication group on the next pass..
+		Version:     "v1alpha1",
+		MessageName: "istio.oidc.v1alpha1.Policy", //TODO: this will change to istio.authentication.v1alpha1.OidcPolicy
+		Validate:    ValidateOidcPolicy,
+	}
+
 	// AuthenticationMeshPolicy describes an authentication policy at mesh level.
 	AuthenticationMeshPolicy = ProtoSchema{
 		ClusterScoped: true,
@@ -501,6 +514,7 @@ var (
 		ServiceRoleBinding,
 		RbacConfig,
 		ClusterRbacConfig,
+		OidcPolicy,
 	}
 )
 
@@ -811,6 +825,96 @@ func (store *istioConfigStore) QuotaSpecByDestination(instance *ServiceInstance)
 	return out
 }
 
+//TODO: build out this function
+func (store *istioConfigStore) OidcPolicyByDestination(service *Service, port *Port) *Config {
+
+	log.Infof("sso - OidcPolicyByDestination len(service.Attributes.Namespace): %+v", len(service.Attributes.Namespace))
+
+	if len(service.Attributes.Namespace) == 0 {
+		return nil
+	}
+	namespace := service.Attributes.Namespace
+
+
+	log.Infof("sso - OidcPolicyByDestination namespace: %s", namespace)
+
+
+	// TODO: test block.. remove later
+	istioSystemSpecs, istioSystemErr := store.List(OidcPolicy.Type, "istio-system")
+	log.Infof("sso - OidcPolicyByDestination istio-system specs: %+v", istioSystemSpecs)
+	if istioSystemErr != nil {
+		log.Infof("sso - error for OidcPolicyByDestination istioSystemErr %s", istioSystemErr)
+	}
+	// TODO: end test block
+
+	specs, err := store.List(OidcPolicy.Type, namespace)
+
+	log.Infof("sso - OidcPolicyByDestination specs: %+v", specs)
+
+	if err != nil {
+		log.Infof("sso - error for OidcPolicyByDestination %s", err)
+		return nil
+	}
+	var out Config
+	currentMatchLevel := 0
+	for _, spec := range specs {
+		policy := spec.Spec.(*oidc.Policy)
+
+
+		log.Infof("sso - OidcPolicyByDestination spec iterator: %+v", policy)
+
+
+		// Indicate if a policy matched to target destination:
+		// 0 - not match.
+		// 1 - global / cluster scope.
+		// 2 - namespace scope.
+		// 3 - workload (service).
+		matchLevel := 0
+		if len(policy.Targets) > 0 {
+			for _, dest := range policy.Targets {
+				log.Infof("sso - service.Hostname: %s", service.Hostname)
+				fqdn := ResolveShortnameToFQDN(dest.Name, spec.ConfigMeta)
+				log.Infof("sso - fqdn: %+v", fqdn)
+
+				if service.Hostname != fqdn {
+					continue
+				}
+				// If destination port is defined, it must match.
+				if len(dest.Ports) > 0 {
+					portMatched := false
+					for _, portSelector := range dest.Ports {
+						if port.MatchOidc(portSelector) {
+							portMatched = true
+							break
+						}
+					}
+					if !portMatched {
+						// Port does not match with any of port selector, skip to next target selector.
+						continue
+					}
+				}
+
+				matchLevel = 3
+				break
+			}
+		} else {
+			// Match on namespace level.
+			matchLevel = 2
+		}
+		// Swap output policy that is match in more specific scope.
+		if matchLevel > currentMatchLevel {
+			currentMatchLevel = matchLevel
+			out = spec
+		}
+	}
+	// Non-zero currentMatchLevel implies authentication policy was found for the given host.
+	if currentMatchLevel != 0 {
+		return &out
+	}
+
+	return nil
+}
+
 func (store *istioConfigStore) AuthenticationPolicyByDestination(service *Service, port *Port) *Config {
 	if len(service.Attributes.Namespace) == 0 {
 		return nil
@@ -818,6 +922,7 @@ func (store *istioConfigStore) AuthenticationPolicyByDestination(service *Servic
 	namespace := service.Attributes.Namespace
 	specs, err := store.List(AuthenticationPolicy.Type, namespace)
 	if err != nil {
+		log.Infof("sso - error for AuthenticationPolicyByDestination %s", err)
 		return nil
 	}
 	var out Config

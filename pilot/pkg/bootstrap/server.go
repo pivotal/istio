@@ -507,6 +507,7 @@ func (s *Server) initMCPConfigController(args *PilotArgs) error {
 
 // initConfigController creates the config controller in the pilotConfig.
 func (s *Server) initConfigController(args *PilotArgs) error {
+	log.Info("sso - calling server.initConfigController")
 	if len(args.MCPServerAddrs) > 0 {
 		if err := s.initMCPConfigController(args); err != nil {
 			return err

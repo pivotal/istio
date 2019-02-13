@@ -1087,6 +1087,11 @@ func ValidateQuotaSpecBinding(name, namespace string, msg proto.Message) error {
 	return errs
 }
 
+func ValidateOidcPolicy(name, namespace string, msg proto.Message) error {
+	var errs error
+	return errs
+}
+
 // ValidateAuthenticationPolicy checks that AuthenticationPolicy is well-formed.
 func ValidateAuthenticationPolicy(name, namespace string, msg proto.Message) error {
 	// Empty namespace indicate policy is from cluster-scoped CRD.

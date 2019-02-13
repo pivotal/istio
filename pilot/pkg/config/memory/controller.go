@@ -16,6 +16,8 @@ package memory
 
 import (
 	"errors"
+	"istio.io/istio/pkg/log"
+	oidc "istio.io/api/oidc/v1alpha1"
 
 	"istio.io/istio/pilot/pkg/model"
 )

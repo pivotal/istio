@@ -33,6 +33,7 @@ import (
 	"github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
 
 	authn "istio.io/api/authentication/v1alpha1"
+	oidc "istio.io/api/oidc/v1alpha1"
 )
 
 // Hostname describes a (possibly wildcarded) hostname
@@ -678,6 +679,21 @@ func (port Port) Match(portSelector *authn.PortSelector) bool {
 	case *authn.PortSelector_Name:
 		return portSelector.GetName() == port.Name
 	case *authn.PortSelector_Number:
+		return portSelector.GetNumber() == uint32(port.Port)
+	default:
+		return false
+	}
+}
+
+// Match returns true if port matches with oidc port selector criteria.
+func (port Port) MatchOidc(portSelector *oidc.PortSelector) bool {
+	if portSelector == nil {
+		return true
+	}
+	switch portSelector.Port.(type) {
+	case *oidc.PortSelector_Name:
+		return portSelector.GetName() == port.Name
+	case *oidc.PortSelector_Number:
 		return portSelector.GetNumber() == uint32(port.Port)
 	default:
 		return false

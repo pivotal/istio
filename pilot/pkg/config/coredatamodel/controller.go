@@ -116,6 +116,7 @@ func (c *Controller) List(typ, namespace string) (out []model.Config, err error)
 // Apply receives changes from MCP server and creates the
 // corresponding config
 func (c *Controller) Apply(change *mcpclient.Change) error {
+	log.Info("sso - calling coremetadata/controller.Apply")
 	messagename := extractMessagename(change.TypeURL)
 	descriptor, ok := c.descriptorsByMessageName[messagename]
 	if !ok {

@@ -65,6 +65,14 @@ resources:
     version:     "v1alpha2"
     proto:       "istio.mixer.v1.config.client.QuotaSpecBinding"
 
+  - kind:        "OidcPolicy"
+    singular:    "oidcpolicy"
+    plural:      "oidcpolicies"
+    group:       "oidc.istio.io"
+    version:     "v1alpha1"
+    proto:       "istio.oidc.v1alpha1.Policy"
+    converter:   "oidc-policy-resource"
+
   - kind:        "Policy"
     singular:    "policy"
     plural:      "policies"

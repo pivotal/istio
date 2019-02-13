@@ -17,6 +17,7 @@ package memory
 
 import (
 	"errors"
+	"istio.io/istio/pkg/log"
 	"sync"
 	"time"
 

@@ -26,11 +26,12 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
 
+	oidcfilter "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/oidc/v1alpha"
+	sessionManager "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/session_manager/v1alpha"
 	authn "istio.io/api/authentication/v1alpha1"
 	authn_filter "istio.io/api/envoy/config/filter/http/authn/v2alpha1"
 	jwtfilter "istio.io/api/envoy/config/filter/http/jwt_auth/v2alpha1"
-	oidcfilter "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/oidc/v1alpha"
-	sessionManager "github.com/envoyproxy/go-control-plane/envoy/config/filter/http/session_manager/v1alpha"
+	oidc "istio.io/api/oidc/v1alpha1"
 	"istio.io/istio/pilot/pkg/model"
 	"istio.io/istio/pilot/pkg/networking/plugin"
 	"istio.io/istio/pilot/pkg/networking/util"
@@ -245,12 +246,79 @@ func ConvertPolicyToJwtConfig(policy *authn.Policy) *jwtfilter.JwtAuthentication
 	return ret
 }
 
-func ReturnHardcodedSessionManagerFilterConfig() *sessionManager.SessionManager {
+func ConvertPolicyToOidcConfig(policy *oidc.Policy) *oidcfilter.OidcConfig {
+
+	if policy == nil {
+		log.Info("sso - ConvertPolicyToOidcConfig receiving nil policy")
+		return nil
+	}
+
+	log.Infof("sso - ConvertPolicyToOidcConfig receiving policy: %+v", policy)
+
+	// TODO: how do we set this value dynamically?
+	cluster := "outbound|443||demo.login.run.pivotal.io"
+
+
+	//TODO: Currently failing here!!! Need to configure Idps in our yaml file.
+	configs := policy.Idps[0].Idp.Configs
+	criteria := policy.Idps[0].Idp.Criteria
+
+	log.Infof("sso - ConvertPolicyToOidcConfig creating configs: %+v", configs)
+	log.Infof("sso - ConvertPolicyToOidcConfig creating criteria: %+v", criteria)
+
+	tokenEndpointUri := &core.HttpUri{
+		Uri: configs.TokenEndpoint,
+		HttpUpstreamType: &core.HttpUri_Cluster{Cluster: cluster},
+	}
+
+	//TODO: currently unsure whether we need JwksUri.cluster to be set..
+	oidcClient := oidcfilter.OidcClient {
+		ClientId:              configs.ClientId,
+		ClientSecret:          configs.ClientSecret, // see lpass for this value: search "istio"
+		Scopes:                []string{"openid"}, // does this go in protobuf?
+		JwksUri:               &core.HttpUri{Uri: configs.JwksUri, HttpUpstreamType: &core.HttpUri_Cluster{Cluster: cluster}},
+		AuthorizationEndpoint: &core.HttpUri{Uri: configs.AuthorizationEndpoint},
+		TokenEndpoint:         tokenEndpointUri,
+	}
+
+	criteriaMatch := oidcfilter.Match_Criteria {
+		Header: criteria.Header,
+		Value: criteria.Value, // update this to the whenever gateway ip changes
+	}
+
+	match := oidcfilter.Match {
+		Idp: &oidcClient,
+		Criteria: &criteriaMatch,
+	}
 
 	tokenBinding := sessionManager.TokenBinding {
-		Binding: "x-xsrf-token",
-		Secret: "Mb07unY1jd4h2s5wUSO9KJzhqjVTazXMWCp4OAiiGko=",
-		Token: "istio_session",
+		Binding: policy.Binding.Token,
+		Secret: policy.Binding.Secret,
+		Token: policy.Binding.Token,
+	}
+
+	ret := &oidcfilter.OidcConfig {
+		Matches: map[string]*oidcfilter.Match {
+			//TODO: modify our Idp proto to contain the idp name/identifier to replace 'tenant1.acme.com'
+			"tenant1.acme.com": &match,
+		},
+		AuthenticationCallback: policy.AuthenticationCallback,
+		LandingPage: policy.LandingPage, // update this to the whenever gateway ip changes
+		Binding: &tokenBinding,
+	}
+
+	log.Infof("sso - ConvertPolicyToOidcConfig returning: %+v", ret)
+
+	return ret
+}
+
+// TODO: This should probably use it's own sessionManager.policy
+func ConvertPolicyToSessionManagerConfig(policy *oidc.Policy) *sessionManager.SessionManager {
+
+	tokenBinding := sessionManager.TokenBinding{
+		Binding: policy.Binding.Token,
+		Secret:  policy.Binding.Secret,
+		Token:   policy.Binding.Token,
 	}
 
 	forwardRule := sessionManager.ForwardRule{
@@ -258,55 +326,9 @@ func ReturnHardcodedSessionManagerFilterConfig() *sessionManager.SessionManager 
 		Preamble: "Bearer",
 	}
 
-
 	ret := &sessionManager.SessionManager{
 		TokenBinding: &tokenBinding,
 		ForwardRule: &forwardRule,
-	}
-
-	return ret
-}
-
-func ReturnHardcodedOidcFilterConfig() *oidcfilter.OidcConfig {
-	tokenEndpointUri := &core.HttpUri{
-		Uri: "https://demo.login.run.pivotal.io/oauth/token",
-		HttpUpstreamType: &core.HttpUri_Cluster{Cluster: "outbound|443||demo.login.run.pivotal.io"},
-	}
-
-
-	//TODO: currently unsure whether we need JwksUri.cluster to be set..
-	oidcClient := oidcfilter.OidcClient {
-		ClientId:              "XXXX",
-		ClientSecret:          "XXXX", // see lpass for this value: search "istio"
-		Scopes:                []string{"openid"},
-		JwksUri:               &core.HttpUri{Uri: "https://demo.login.run.pivotal.io/token_keys", HttpUpstreamType: &core.HttpUri_Cluster{Cluster: "outbound|443||demo.login.run.pivotal.io"}},
-		AuthorizationEndpoint: &core.HttpUri{Uri: "https://demo.login.run.pivotal.io/oauth/authorize"},
-		TokenEndpoint:         tokenEndpointUri,
-	}
-
-	criteriaMatch := oidcfilter.Match_Criteria {
-		Header: ":authority",
-		Value: "35.193.92.216", // update this to the whenever gateway ip changes
-	}
-
-	match := oidcfilter.Match {
-	 	Idp: &oidcClient,
-	 	Criteria: &criteriaMatch,
-	}
-
-	tokenBinding := sessionManager.TokenBinding {
-		Binding: "x-xsrf-token",
-		Secret: "Mb07unY1jd4h2s5wUSO9KJzhqjVTazXMWCp4OAiiGko=",
-		Token: "istio_session",
-	}
-
-	ret := &oidcfilter.OidcConfig {
-		Matches: map[string]*oidcfilter.Match {
-			"tenant1.acme.com": &match,
-		},
-		AuthenticationCallback: "/oidc/authenticate",
-		LandingPage: "https://35.193.92.216/productpage", // update this to the whenever gateway ip changes
-		Binding: &tokenBinding,
 	}
 
 	return ret
@@ -385,9 +407,10 @@ func BuildAuthNFilter(policy *authn.Policy, proxyType model.NodeType) *http_conn
 }
 
 // BuildOidcFilter xxxx
-func BuildOidcFilter() *http_conn.HttpFilter {
+func BuildOidcFilter(policy *oidc.Policy) *http_conn.HttpFilter {
 	log.Info("sso - BuildOidcFilter")
-	filterConfigProto := ReturnHardcodedOidcFilterConfig()
+
+	filterConfigProto := ConvertPolicyToOidcConfig(policy)
 	if filterConfigProto == nil {
 		return nil
 	}
@@ -400,9 +423,10 @@ func BuildOidcFilter() *http_conn.HttpFilter {
 }
 
 // BuildSessionManagerFilter xxxx
-func BuildSessionManagerFilter() *http_conn.HttpFilter {
+//TODO: should probably take a sessionManager.Policy
+func BuildSessionManagerFilter(policy *oidc.Policy) *http_conn.HttpFilter {
 	log.Info("sso - BuildSessionManagerFilter")
-	filterConfigProto := ReturnHardcodedSessionManagerFilterConfig()
+	filterConfigProto := ConvertPolicyToSessionManagerConfig(policy)
 	if filterConfigProto == nil {
 		return nil
 	}
@@ -448,6 +472,8 @@ func buildFilter(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
 
 	authnPolicy := model.GetConsolidateAuthenticationPolicy(
 		in.Env.IstioConfigStore, in.ServiceInstance.Service, in.ServiceInstance.Endpoint.ServicePort)
+	oidcPolicy := model.GetOidcPolicy(
+		in.Env.IstioConfigStore, in.ServiceInstance.Service, in.ServiceInstance.Endpoint.ServicePort)
 
 	if mutable.Listener == nil || (len(mutable.Listener.FilterChains) != len(mutable.FilterChains)) {
 		return fmt.Errorf("expected same number of filter chains in listener (%d) and mutable (%d)", len(mutable.Listener.FilterChains), len(mutable.FilterChains))
@@ -461,9 +487,9 @@ func buildFilter(in *plugin.InputParams, mutable *plugin.MutableObjects) error {
 			if filter := BuildAuthNFilter(authnPolicy, in.Node.Type); filter != nil {
 				mutable.FilterChains[i].HTTP = append(mutable.FilterChains[i].HTTP, filter)
 			}
-			if filter := BuildOidcFilter(); filter != nil {
+			if filter := BuildOidcFilter(oidcPolicy); filter != nil {
 				log.Info("sso - adding oidc filter to filterChains")
-				if sessionManagerFilter := BuildSessionManagerFilter(); sessionManagerFilter != nil {
+				if sessionManagerFilter := BuildSessionManagerFilter(oidcPolicy); sessionManagerFilter != nil {
 					log.Info("sso - it's ingress, actually adding session manager filter to filterChains")
 					mutable.FilterChains[i].HTTP = append(mutable.FilterChains[i].HTTP, sessionManagerFilter)
 				}

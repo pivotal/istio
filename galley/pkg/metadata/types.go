@@ -10,6 +10,7 @@ import (
 	_ "istio.io/api/authentication/v1alpha1"
 	_ "istio.io/api/mixer/v1/config/client"
 	_ "istio.io/api/networking/v1alpha3"
+	_ "istio.io/api/oidc/v1alpha1"
 	_ "istio.io/api/policy/v1beta1"
 	_ "istio.io/api/rbac/v1alpha1"
 	_ "istio.io/istio/galley/pkg/kube/converter/legacy"
@@ -32,6 +33,7 @@ func init() {
 	b.Register("type.googleapis.com/istio.networking.v1alpha3.Gateway")
 	b.Register("type.googleapis.com/istio.networking.v1alpha3.ServiceEntry")
 	b.Register("type.googleapis.com/istio.networking.v1alpha3.VirtualService")
+	b.Register("type.googleapis.com/istio.oidc.v1alpha1.Policy")
 	b.Register("type.googleapis.com/istio.policy.v1beta1.AttributeManifest")
 	b.Register("type.googleapis.com/istio.policy.v1beta1.Handler")
 	b.Register("type.googleapis.com/istio.policy.v1beta1.Instance")
