@@ -255,11 +255,12 @@ func ConvertPolicyToOidcConfig(policy *oidc.Policy) *oidcfilter.OidcConfig {
 
 	log.Infof("sso - ConvertPolicyToOidcConfig receiving policy: %+v", policy)
 
-	// TODO: how do we set this value dynamically?
+	// TODO: SSO-INT: How do we set this value dynamically? See OnOutboundCluster
+	//       for an example of how to set this dynamically.
 	cluster := "outbound|443||demo.login.run.pivotal.io"
 
 
-	//TODO: Currently failing here!!! Need to configure Idps in our yaml file.
+	// TODO: SSO-INT: We will need to iterate over the policy.Idps and configure each Idp.
 	configs := policy.Idps[0].Idp.Configs
 	criteria := policy.Idps[0].Idp.Criteria
 
@@ -271,7 +272,6 @@ func ConvertPolicyToOidcConfig(policy *oidc.Policy) *oidcfilter.OidcConfig {
 		HttpUpstreamType: &core.HttpUri_Cluster{Cluster: cluster},
 	}
 
-	//TODO: currently unsure whether we need JwksUri.cluster to be set..
 	oidcClient := oidcfilter.OidcClient {
 		ClientId:              configs.ClientId,
 		ClientSecret:          configs.ClientSecret, // see lpass for this value: search "istio"
@@ -283,7 +283,7 @@ func ConvertPolicyToOidcConfig(policy *oidc.Policy) *oidcfilter.OidcConfig {
 
 	criteriaMatch := oidcfilter.Match_Criteria {
 		Header: criteria.Header,
-		Value: criteria.Value, // update this to the whenever gateway ip changes
+		Value: criteria.Value,
 	}
 
 	match := oidcfilter.Match {
@@ -299,7 +299,7 @@ func ConvertPolicyToOidcConfig(policy *oidc.Policy) *oidcfilter.OidcConfig {
 
 	ret := &oidcfilter.OidcConfig {
 		Matches: map[string]*oidcfilter.Match {
-			//TODO: modify our Idp proto to contain the idp name/identifier to replace 'tenant1.acme.com'
+			//TODO: SSO-INT: modify our Idp proto to contain the idp name/identifier to replace 'tenant1.acme.com'
 			"tenant1.acme.com": &match,
 		},
 		AuthenticationCallback: policy.AuthenticationCallback,
@@ -515,6 +515,7 @@ func (Plugin) OnInboundRouteConfiguration(in *plugin.InputParams, route *xdsapi.
 
 // OnOutboundCluster implements the Plugin interface method.
 func (Plugin) OnOutboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster) {
+	//TODO SSO-INT: This is one example of where we can dynamically discover the configured egress cluster
   log.Info("----- Begin OnOutboundCluster called..")
   log.Infof("Cluster: %+v\n", cluster)
   log.Infof("InputParams: %+v\n", in)
@@ -523,7 +524,4 @@ func (Plugin) OnOutboundCluster(in *plugin.InputParams, cluster *xdsapi.Cluster)
   }
 
   log.Info("----- End OnOutboundCluster called..")
-
-
-
 }

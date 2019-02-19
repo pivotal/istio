@@ -1,0 +1,296 @@
+---
+title: istio.oidc.v1alpha1
+layout: protoc-gen-docs
+generator: protoc-gen-docs
+number_of_entries: 8
+---
+<h2 id="Criteria">Criteria</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Criteria-header">
+<td><code>header</code></td>
+<td><code>string</code></td>
+<td>
+<p>Match by 1) a header and 2) the value of the header</p>
+
+</td>
+</tr>
+<tr id="Criteria-value">
+<td><code>value</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="IdentityProvider">IdentityProvider</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="IdentityProvider-idp">
+<td><code>idp</code></td>
+<td><code><a href="#Idp">Idp</a></code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="Idp">Idp</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Idp-criteria">
+<td><code>criteria</code></td>
+<td><code><a href="#Criteria">Criteria</a></code></td>
+<td>
+</td>
+</tr>
+<tr id="Idp-configs">
+<td><code>configs</code></td>
+<td><code><a href="#IdpConfigs">IdpConfigs</a></code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="IdpConfigs">IdpConfigs</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="IdpConfigs-authorizationEndpoint">
+<td><code>authorizationEndpoint</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+<tr id="IdpConfigs-tokenEndpoint">
+<td><code>tokenEndpoint</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+<tr id="IdpConfigs-jwksUri">
+<td><code>jwksUri</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+<tr id="IdpConfigs-clientId">
+<td><code>clientId</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+<tr id="IdpConfigs-clientSecret">
+<td><code>clientSecret</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="Policy">Policy</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="Policy-targets">
+<td><code>targets</code></td>
+<td><code><a href="#TargetSelector">TargetSelector[]</a></code></td>
+<td>
+<p>List rules to select workloads that the policy should be applied on.
+If empty, policy will be used on all workloads in the same namespace.</p>
+
+</td>
+</tr>
+<tr id="Policy-idps">
+<td><code>idps</code></td>
+<td><code><a href="#IdentityProvider">IdentityProvider[]</a></code></td>
+<td>
+</td>
+</tr>
+<tr id="Policy-authentication_callback">
+<td><code>authenticationCallback</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+<tr id="Policy-landing_page">
+<td><code>landingPage</code></td>
+<td><code>string</code></td>
+<td>
+</td>
+</tr>
+<tr id="Policy-binding">
+<td><code>binding</code></td>
+<td><code><a href="#TokenBinding">TokenBinding</a></code></td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="PortSelector">PortSelector</h2>
+<section>
+<p>PortSelector specifies the name or number of a port to be used for
+matching targets for authentication policy. This is copied from
+networking API to avoid dependency.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="PortSelector-number" class="oneof oneof-start">
+<td><code>number</code></td>
+<td><code>uint32 (oneof)</code></td>
+<td>
+<p>Valid port number</p>
+
+</td>
+</tr>
+<tr id="PortSelector-name" class="oneof">
+<td><code>name</code></td>
+<td><code>string (oneof)</code></td>
+<td>
+<p>Port name</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="TargetSelector">TargetSelector</h2>
+<section>
+<p>TargetSelector defines a matching rule to a workload. A workload is selected
+if it is associated with the service name and service port(s) specified in the selector rule.</p>
+
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="TargetSelector-name">
+<td><code>name</code></td>
+<td><code>string</code></td>
+<td>
+<p>REQUIRED. The name must be a short name from the service registry. The
+fully qualified domain name will be resolved in a platform specific manner.</p>
+
+</td>
+</tr>
+<tr id="TargetSelector-ports">
+<td><code>ports</code></td>
+<td><code><a href="#PortSelector">PortSelector[]</a></code></td>
+<td>
+<p>Specifies the ports. Note that this is the port(s) exposed by the service, not workload ports.
+For example, if a service is defined as below, then <code>8000</code> should be used, not <code>9000</code>.</p>
+
+<pre><code>kind: Service
+metadata:
+  ...
+spec:
+  ports:
+  - name: http
+    port: 8000
+    targetPort: 9000
+  selector:
+    app: backend
+</code></pre>
+
+<p>Leave empty to match all ports that are exposed.</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<h2 id="TokenBinding">TokenBinding</h2>
+<section>
+<table class="message-fields">
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr id="TokenBinding-secret">
+<td><code>secret</code></td>
+<td><code>string</code></td>
+<td>
+<p>The 256-bit base64 encoded shared secret used to validate cryptographic session token bindings.</p>
+
+</td>
+</tr>
+<tr id="TokenBinding-token">
+<td><code>token</code></td>
+<td><code>string</code></td>
+<td>
+<p>[(validate.rules).string.min<em>bytes = 44, (validate.rules).string.max</em>bytes = 44];
+The name of the session token cookie. It is recommended that this value start with
+the string &ldquo;__Secure-&rdquo; as described at
+https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie.</p>
+
+</td>
+</tr>
+<tr id="TokenBinding-binding">
+<td><code>binding</code></td>
+<td><code>string</code></td>
+<td>
+<p>The name of the header that includes the cryptographic session token binding. A good choices
+for this field are x-xsrf-token or x-csrf-token</p>
+
+</td>
+</tr>
+</tbody>
+</table>
+</section>

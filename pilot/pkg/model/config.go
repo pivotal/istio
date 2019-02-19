@@ -838,15 +838,6 @@ func (store *istioConfigStore) OidcPolicyByDestination(service *Service, port *P
 
 	log.Infof("sso - OidcPolicyByDestination namespace: %s", namespace)
 
-
-	// TODO: test block.. remove later
-	istioSystemSpecs, istioSystemErr := store.List(OidcPolicy.Type, "istio-system")
-	log.Infof("sso - OidcPolicyByDestination istio-system specs: %+v", istioSystemSpecs)
-	if istioSystemErr != nil {
-		log.Infof("sso - error for OidcPolicyByDestination istioSystemErr %s", istioSystemErr)
-	}
-	// TODO: end test block
-
 	specs, err := store.List(OidcPolicy.Type, namespace)
 
 	log.Infof("sso - OidcPolicyByDestination specs: %+v", specs)
